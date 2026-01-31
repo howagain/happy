@@ -494,6 +494,8 @@ ${chalk.bold('To clean up runaway processes:')} Use ${chalk.cyan('happy doctor c
         unknownArgs.push('--dangerously-skip-permissions')
       } else if (arg === '--started-by') {
         options.startedBy = args[++i] as 'daemon' | 'terminal'
+      } else if (arg === '--happy-session-tag') {
+        options.sessionTag = args[++i]
       } else if (arg === '--js-runtime') {
         const runtime = args[++i]
         if (runtime !== 'node' && runtime !== 'bun') {

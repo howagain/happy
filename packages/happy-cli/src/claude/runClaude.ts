@@ -41,6 +41,8 @@ export interface StartOptions {
     startedBy?: 'daemon' | 'terminal'
     /** JavaScript runtime to use for spawning Claude Code (default: 'node') */
     jsRuntime?: JsRuntime
+    /** Session tag from daemon spawn (reuses server-created session instead of creating new one) */
+    sessionTag?: string
 }
 
 export async function runClaude(credentials: Credentials, options: StartOptions = {}): Promise<void> {
@@ -48,7 +50,10 @@ export async function runClaude(credentials: Credentials, options: StartOptions 
     logger.debug(`[CLAUDE] This is the Claude agent, NOT Gemini`);
     
     const workingDirectory = process.cwd();
-    const sessionTag = randomUUID();
+    const sessionTag = options.sessionTag || randomUUID();
+    if (options.sessionTag) {
+        console.error(`[DIAG] Using daemon-provided session tag: ${sessionTag}`);
+    }
 
     // Log environment info at startup
     logger.debugLargeJson('[START] Happy process started', getEnvironmentInfo());
@@ -248,6 +253,7 @@ export async function runClaude(credentials: Credentials, options: StartOptions 
     let currentAllowedTools: string[] | undefined = undefined; // Track current allowed tools
     let currentDisallowedTools: string[] | undefined = undefined; // Track current disallowed tools
     session.onUserMessage((message) => {
+        console.error(`[DIAG] onUserMessage fired! text="${message.content?.text?.substring(0, 80)}"`);
 
         // Resolve permission mode from meta - pass through as-is, mapping happens at SDK boundary
         let messagePermissionMode: PermissionMode | undefined = currentPermissionMode;

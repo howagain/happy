@@ -175,7 +175,7 @@ export class Query implements AsyncIterableIterator<SDKMessage> {
     private async handleControlRequest(request: CanUseToolControlRequest): Promise<void> {
         if (!this.childStdin) {
             logDebug('Cannot handle control request - no stdin available')
-            return
+            throw new Error('No stdin available - headless mode cannot handle interactive tool permissions')
         }
 
         const controller = new AbortController()

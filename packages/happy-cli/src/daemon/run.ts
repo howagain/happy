@@ -388,7 +388,8 @@ export async function startDaemon(): Promise<void> {
           const cliPath = join(projectPath(), 'dist', 'index.mjs');
           // Determine agent command - support claude, codex, and gemini
           const agent = options.agent === 'gemini' ? 'gemini' : (options.agent === 'codex' ? 'codex' : 'claude');
-          const fullCommand = `node --no-warnings --no-deprecation ${cliPath} ${agent} --happy-starting-mode remote --started-by daemon`;
+          const sessionTagArg = sessionId ? ` --happy-session-tag ${sessionId}` : '';
+          const fullCommand = `node --no-warnings --no-deprecation ${cliPath} ${agent} --happy-starting-mode remote --started-by daemon${sessionTagArg}`;
 
           // Spawn in tmux with environment variables
           // IMPORTANT: Pass complete environment (process.env + extraEnv) because:
@@ -492,11 +493,9 @@ export async function startDaemon(): Promise<void> {
           const args = [
             agentCommand,
             '--happy-starting-mode', 'remote',
-            '--started-by', 'daemon'
+            '--started-by', 'daemon',
+            ...(sessionId ? ['--happy-session-tag', sessionId] : [])
           ];
-
-          // TODO: In future, sessionId could be used with --resume to continue existing sessions
-          // For now, we ignore it - each spawn creates a new session
           const happyProcess = spawnHappyCLI(args, {
             cwd: directory,
             detached: true,  // Sessions stay alive when daemon stops
@@ -507,13 +506,16 @@ export async function startDaemon(): Promise<void> {
             }
           });
 
-          // Log output for debugging
+          // Always capture child stderr for diagnostic logging ([DIAG] lines)
+          happyProcess.stderr?.on('data', (data) => {
+            const str = data.toString();
+            if (str.includes('[DIAG]') || process.env.DEBUG) {
+              logger.debug(`[DAEMON RUN] Child stderr: ${str}`);
+            }
+          });
           if (process.env.DEBUG) {
             happyProcess.stdout?.on('data', (data) => {
               logger.debug(`[DAEMON RUN] Child stdout: ${data.toString()}`);
-            });
-            happyProcess.stderr?.on('data', (data) => {
-              logger.debug(`[DAEMON RUN] Child stderr: ${data.toString()}`);
             });
           }
 
@@ -526,6 +528,7 @@ export async function startDaemon(): Promise<void> {
           }
 
           logger.debug(`[DAEMON RUN] Spawned process with PID ${happyProcess.pid}`);
+          console.error(`[DIAG] Daemon spawned CLI. server-sessionId=${sessionId || 'none'}, pid=${happyProcess.pid}`);
 
           const trackedSession: TrackedSession = {
             startedBy: 'daemon',

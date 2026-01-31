@@ -27,7 +27,7 @@ export async function claudeRemoteLauncher(session: Session): Promise<'switch' |
     logger.debug('[claudeRemoteLauncher] Starting remote launcher');
 
     // Check if we have a TTY for UI rendering
-    const hasTTY = process.stdout.isTTY && process.stdin.isTTY;
+    const hasTTY = !!(process.stdout.isTTY && process.stdin.isTTY);
     logger.debug(`[claudeRemoteLauncher] TTY available: ${hasTTY}`);
 
     // Configure terminal
@@ -303,6 +303,7 @@ export async function claudeRemoteLauncher(session: Session): Promise<'switch' |
         let previousSessionId: string | null = null;
         while (!exitReason) {
             logger.debug('[remote]: launch');
+            console.error(`[DIAG] claudeRemoteLauncher: starting. sessionId=${session.sessionId}, hasTTY=${!!(process.stdout.isTTY && process.stdin.isTTY)}`);
             messageBuffer.addMessage('═'.repeat(40), 'status');
 
             // Only reset parent chain and show "new session" message when session ID actually changes
@@ -336,6 +337,7 @@ export async function claudeRemoteLauncher(session: Session): Promise<'switch' |
                         return permissionHandler.isAborted(toolCallId);
                     },
                     nextMessage: async () => {
+                        console.error(`[DIAG] nextMessage() called. pending=${!!pending}, queueSize=${session.queue.size()}`);
                         if (pending) {
                             let p = pending;
                             pending = null;

@@ -100,6 +100,7 @@ export class ApiSessionClient extends EventEmitter {
         //
 
         this.socket.on('connect', () => {
+            console.error(`[DIAG] Socket connected! sid=${this.sessionId}`);
             logger.debug('Socket connected successfully');
             this.rpcHandlerManager.onSocketConnect(this.socket);
         })
@@ -122,6 +123,8 @@ export class ApiSessionClient extends EventEmitter {
         // Server events
         this.socket.on('update', (data: Update) => {
             try {
+                // DIAGNOSTIC: Log ALL incoming socket events for headless VPS debugging
+                console.error(`[DIAG] Socket event: body.t=${data.body?.t}, sid=${this.sessionId}`);
                 logger.debugLargeJson('[SOCKET] [UPDATE] Received update:', data);
 
                 if (!data.body) {
@@ -130,12 +133,15 @@ export class ApiSessionClient extends EventEmitter {
                 }
 
                 if (data.body.t === 'new-message' && data.body.message.content.t === 'encrypted') {
+                    console.error(`[DIAG] new-message received! Attempting decrypt...`);
                     const body = decrypt(this.encryptionKey, this.encryptionVariant, decodeBase64(data.body.message.content.c));
+                    console.error(`[DIAG] Decrypted successfully. Parsing as UserMessage...`);
 
                     logger.debugLargeJson('[SOCKET] [UPDATE] Received update:', body)
 
                     // Try to parse as user message first
                     const userResult = UserMessageSchema.safeParse(body);
+                    console.error(`[DIAG] UserMessage parse success=${userResult.success}, hasCallback=${!!this.pendingMessageCallback}, pendingCount=${this.pendingMessages.length}`);
                     if (userResult.success) {
                         // Server already filtered to only our session
                         if (this.pendingMessageCallback) {
@@ -160,10 +166,12 @@ export class ApiSessionClient extends EventEmitter {
                     // Session clients shouldn't receive machine updates - log warning
                     logger.debug(`[SOCKET] WARNING: Session client received unexpected machine update - ignoring`);
                 } else {
+                    console.error(`[DIAG] Unknown/unhandled event type: ${data.body?.t}`);
                     // If not a user message, it might be a permission response or other message type
                     this.emit('message', data.body);
                 }
             } catch (error) {
+                console.error(`[DIAG] Error in socket update handler:`, error);
                 logger.debug('[SOCKET] [UPDATE] [ERROR] Error handling update', { error });
             }
         });
